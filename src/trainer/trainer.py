@@ -149,7 +149,7 @@ class Trainer(BaseTrainer):
             pass
 
     def _mel_to_image(self, mel):
-        mel = mel.detach().cpu()
+        mel = mel.detach().cpu().squeeze(0)
         mel = torch.log(mel + 1e-12).numpy()
         return plt.get_cmap("magma")(mel)[:, :, :3]
 
