@@ -10,8 +10,8 @@ defaults:
 
 
 trainer:
-  generator_max_grad_norm: 200
-  discriminator_max_grad_norm: 200
+#  generator_max_grad_norm: 10000
+#  discriminator_max_grad_norm: 10000
   rvq_init_steps: 128
   rvq_kmeans_num_iters: 40
 

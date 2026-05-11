@@ -6,16 +6,9 @@ from torch import nn
 class GeneratorMultiscaleReconstructionLoss(nn.Module):
     def __init__(self, sample_rate, window_length_list, n_mels, power):
         super().__init__()
-        self.l1_loss = nn.L1Loss()
-        self.l2_loss = nn.MSELoss()
         self.register_buffer(
             "alphas",
-            torch.tensor(
-                [
-                    torch.sqrt(torch.tensor(window_length) / 2)
-                    for window_length in window_length_list
-                ]
-            ),
+            torch.sqrt(torch.tensor(window_length_list, dtype=torch.float32) / 2.0),
         )
         self.mel_transforms = nn.ModuleList(
             [
@@ -30,6 +23,12 @@ class GeneratorMultiscaleReconstructionLoss(nn.Module):
                 for window_length in window_length_list
             ]
         )
+
+    def l1_loss(self, target, pred):
+        return torch.abs(target - pred).sum(dim=-2).sum(dim=-1)
+
+    def l2_loss(self, target, pred):
+        return torch.linalg.vector_norm(target - pred, ord=2, dim=-2).sum(dim=-1)
 
     def forward(
         self,
@@ -50,21 +49,20 @@ class GeneratorMultiscaleReconstructionLoss(nn.Module):
                     transform(reconstructed[:, :length])
                     for transform in self.mel_transforms
                 ]
-                losses.append(
-                    torch.stack(
-                        [
-                            self.l1_loss(mel_spec, reconstructed_mel_spec)
-                            + alpha
-                            * self.l2_loss(
-                                torch.log(mel_spec + 1e-12),
-                                torch.log(reconstructed_mel_spec + 1e-12),
-                            )
-                            for mel_spec, reconstructed_mel_spec, alpha in zip(
-                                mel_specs, reconstructed_mel_specs, self.alphas
-                            )
-                        ]
-                    )
+                current_losses = torch.stack(
+                    [
+                        self.l1_loss(mel_spec, reconstructed_mel_spec)
+                        + alpha
+                        * self.l2_loss(
+                            torch.log(mel_spec + 1e-12),
+                            torch.log(reconstructed_mel_spec + 1e-12),
+                        )
+                        for mel_spec, reconstructed_mel_spec, alpha in zip(
+                            mel_specs, reconstructed_mel_specs, self.alphas
+                        )
+                    ]
                 )
+                losses.append(current_losses.sum())
             reconstruction_loss = torch.mean(torch.stack(losses))
             return {"generator_loss": reconstruction_loss}
         mel_specs = [transform(audio) for transform in self.mel_transforms]
@@ -84,5 +82,5 @@ class GeneratorMultiscaleReconstructionLoss(nn.Module):
                 )
             ]
         )
-        reconstruction_loss = torch.mean(reconstruction_losses)
+        reconstruction_loss = reconstruction_losses.sum(dim=0).mean()
         return {"generator_loss": reconstruction_loss}
