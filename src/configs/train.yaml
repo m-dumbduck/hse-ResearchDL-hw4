@@ -16,8 +16,8 @@ trainer:
   rvq_kmeans_num_iters: 40
 
   log_step: 100
-  n_epochs: 15
-  epoch_len: 4000
+  n_epochs: 20
+  epoch_len: 2000
   device_tensors: ["audio"] # which tensors should be on device (ex. GPU)
   resume_from: null # null or path to the checkpoint dir with *.pth and config.yaml
   device: auto # device name or "auto"

@@ -1,5 +1,6 @@
 import torch
 import torchaudio
+from matplotlib import pyplot as plt
 from sympy.solvers.diophantine.diophantine import reconstruct
 from tqdm.auto import tqdm
 
@@ -133,12 +134,12 @@ class Trainer(BaseTrainer):
         ).to(self.device)
 
         self.writer.add_image(
-            f"{mode}/mel/original", mel_transform(audio).detach().cpu().numpy()
+            f"{mode}/mel/original", self._mel_to_image(mel_transform(audio))
         )
 
         self.writer.add_image(
             f"{mode}/mel/reconstructed",
-            mel_transform(reconstructed_audio).detach().cpu().numpy(),
+            self._mel_to_image(mel_transform(reconstructed_audio)),
         )
 
         # logging scheme might be different for different partitions
@@ -146,6 +147,11 @@ class Trainer(BaseTrainer):
             pass
         else:
             pass
+
+    def _mel_to_image(self, mel):
+        mel = mel.detach().cpu()
+        mel = torch.log(mel + 1e-12).numpy()
+        return plt.get_cmap("magma")(mel)[:, :, :3]
 
     def _on_train_start(self):
         self.init_rvq_codebooks()

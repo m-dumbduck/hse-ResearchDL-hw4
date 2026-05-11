@@ -21,7 +21,7 @@ loss_function:
   adv_loss_weight: 1
   adv_loss:
     _target_: src.loss.GeneratorAdversarialLoss
-  feature_loss_weight: 100
+  feature_loss_weight: 10
   feature_loss:
     _target_: src.loss.GeneratorFeatureLoss
   commitment_loss_weight: 1
