@@ -1,3 +1,4 @@
+import soundfile
 import torch
 from tqdm.auto import tqdm
 
@@ -16,7 +17,7 @@ class Inferencer(BaseTrainer):
 
     def __init__(
         self,
-        model,
+        generator,
         config,
         device,
         dataloaders,
@@ -29,7 +30,7 @@ class Inferencer(BaseTrainer):
         Initialize the Inferencer.
 
         Args:
-            model (nn.Module): PyTorch model.
+            generator (nn.Module): PyTorch model.
             config (DictConfig): run config containing inferencer config.
             device (str): device for tensors and model.
             dataloaders (dict[DataLoader]): dataloaders for different
@@ -56,7 +57,7 @@ class Inferencer(BaseTrainer):
 
         self.device = device
 
-        self.model = model
+        self.model = generator
         self.batch_transforms = batch_transforms
 
         # define dataloaders
@@ -129,26 +130,35 @@ class Inferencer(BaseTrainer):
         # Some saving logic. This is an example
         # Use if you need to save predictions on disk
 
-        batch_size = batch["logits"].shape[0]
+        batch_size = batch["audio"].shape[0]
         current_id = batch_idx * batch_size
 
         for i in range(batch_size):
             # clone because of
             # https://github.com/pytorch/pytorch/issues/1995
-            logits = batch["logits"][i].clone()
-            label = batch["labels"][i].clone()
-            pred_label = logits.argmax(dim=-1)
+            audio = batch["audio"][i].clone().cpu().numpy().flatten()
+            reconstructed_audio = (
+                batch["reconstructed_audio"][i].clone().cpu().numpy().flatten()
+            )
+            sample_rate = batch["sample_rate"][i].item()
+            raw_length = batch["raw_length"][i].item()
+
+            audio = audio[:raw_length]
+            reconstructed_audio = reconstructed_audio[:raw_length]
 
             output_id = current_id + i
 
-            output = {
-                "pred_label": pred_label,
-                "label": label,
-            }
-
             if self.save_path is not None:
-                # you can use safetensors or other lib here
-                torch.save(output, self.save_path / part / f"output_{output_id}.pth")
+                save_dir = self.save_path / part / f"{output_id}"
+                save_dir.mkdir(parents=True, exist_ok=True)
+                soundfile.write(
+                    save_dir / "original_audio.flac", audio, samplerate=sample_rate
+                )
+                soundfile.write(
+                    save_dir / "reconstructed_audio.flac",
+                    reconstructed_audio,
+                    samplerate=sample_rate,
+                )
 
         return batch
 

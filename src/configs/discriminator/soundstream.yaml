@@ -1,0 +1,23 @@
+model:
+  _target_: src.model.sound_stream.Discriminator
+  multiscale_waveform_discriminator:
+    _target_: src.model.sound_stream.waveform_discriminator.MultiscaleWaveformDiscriminator
+    n_channels: 16
+    max_channels: 1024
+  stft_discriminator:
+    _target_: src.model.sound_stream.stft_discriminator.STFTDiscriminator
+    n_channels: 32
+    stft_win_length: 1024
+    stft_hop_length: 256
+
+optimizer:
+  _target_: torch.optim.Adam
+  lr: 1e-4
+
+lr_scheduler:
+  _target_: torch.optim.lr_scheduler.LambdaLR
+  lr_lambda:
+    _target_: src.scheduler.ConstantLRLambda
+
+loss_function:
+  _target_: src.loss.DiscriminatorAdversarialLoss

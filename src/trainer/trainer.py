@@ -1,3 +1,8 @@
+import torch
+import torchaudio
+from sympy.solvers.diophantine.diophantine import reconstruct
+from tqdm.auto import tqdm
+
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
 
@@ -29,27 +34,57 @@ class Trainer(BaseTrainer):
         batch = self.move_batch_to_device(batch)
         batch = self.transform_batch(batch)  # transform batch on device -- faster
 
-        metric_funcs = self.metrics["inference"]
         if self.is_train:
             metric_funcs = self.metrics["train"]
-            self.optimizer.zero_grad()
+            self.generator_optimizer.zero_grad()
+            self.discriminator_optimizer.zero_grad()
 
-        outputs = self.model(**batch)
-        batch.update(outputs)
+            # D step
+            generator_outputs = self.generator(**batch)
+            batch.update(generator_outputs)
+            discriminator_outputs = self.discriminator.forward_for_both(
+                audio=batch["audio"],
+                reconstructed_audio=batch["reconstructed_audio"].detach(),
+            )
+            batch.update(discriminator_outputs)
+            discriminator_loss = self.discriminator_criterion(**batch)
+            batch.update(discriminator_loss)
 
-        all_losses = self.criterion(**batch)
-        batch.update(all_losses)
+            batch["discriminator_loss"].backward()
+            self._clip_grad_norm_discriminator()
+            self.discriminator_optimizer.step()
+            if self.discriminator_lr_scheduler is not None:
+                self.discriminator_lr_scheduler.step()
 
-        if self.is_train:
-            batch["loss"].backward()  # sum of all losses is always called loss
-            self._clip_grad_norm()
-            self.optimizer.step()
-            if self.lr_scheduler is not None:
-                self.lr_scheduler.step()
+            self.generator_optimizer.zero_grad()
+            self.discriminator_optimizer.zero_grad()
 
-        # update metrics for each loss (in case of multiple losses)
-        for loss_name in self.config.writer.loss_names:
-            metrics.update(loss_name, batch[loss_name].item())
+            # G step
+            generator_outputs = self.generator(**batch)
+            batch.update(generator_outputs)
+            discriminator_outputs = self.discriminator.forward_for_both(**batch)
+            batch.update(discriminator_outputs)
+            generator_loss = self.generator_criterion(**batch)
+            batch.update(generator_loss)
+            batch["generator_loss"].backward()
+            self._clip_grad_norm_generator()
+            self.generator_optimizer.step()
+            if self.generator_lr_scheduler is not None:
+                self.generator_lr_scheduler.step()
+
+            # update metrics for each loss (in case of multiple losses)
+            for loss_name in self.config.writer.loss_names:
+                metrics.update(loss_name, batch[loss_name].item())
+        else:
+            metric_funcs = self.metrics["inference"]
+            generator_outputs = self.generator(**batch)
+            batch.update(generator_outputs)
+            # discriminator_outputs = self.discriminator.forward_for_both(**batch)
+            # batch.update(discriminator_outputs)
+            # generator_loss = self.generator_criterion(**batch)
+            # batch.update(generator_loss)
+            # discriminator_loss = self.discriminator_criterion(**batch)
+            # batch.update(discriminator_loss)
 
         for met in metric_funcs:
             metrics.update(met.name, met(**batch))
@@ -70,10 +105,69 @@ class Trainer(BaseTrainer):
         # method to log data from you batch
         # such as audio, text or images, for example
 
+        audio = batch["audio"][0]
+        reconstructed_audio = batch["reconstructed_audio"][0]
+        sample_rate = int(batch["sample_rate"][0])
+
+        self.writer.add_audio(
+            f"{mode}/audio/original",
+            audio=audio,
+            sample_rate=sample_rate,
+        )
+
+        self.writer.add_audio(
+            f"{mode}/audio/reconstructed",
+            audio=reconstructed_audio,
+            sample_rate=sample_rate,
+        )
+
+        mel_transform = torchaudio.transforms.MelSpectrogram(
+            sample_rate=sample_rate,
+            win_length=self.config.trainer.log_mel.win_length,
+            n_fft=self.config.trainer.log_mel.win_length,
+            hop_length=self.config.trainer.log_mel.hop_length,
+            n_mels=self.config.trainer.log_mel.n_mels,
+        ).to(self.device)
+
+        self.writer.add_image(
+            f"{mode}/mel/original", mel_transform(audio).detach().cpu().numpy()
+        )
+
+        self.writer.add_image(
+            f"{mode}/mel/reconstructed",
+            mel_transform(reconstructed_audio).detach().cpu().numpy(),
+        )
+
         # logging scheme might be different for different partitions
         if mode == "train":  # the method is called only every self.log_step steps
-            # Log Stuff
             pass
         else:
-            # Log Stuff
             pass
+
+    def _on_train_start(self):
+        self.init_rvq_codebooks()
+
+    @torch.no_grad()
+    def init_rvq_codebooks(self):
+        if self.generator.rvq_done_initial_clustering():
+            return
+
+        self.logger.info("Initializing RVQ codebooks...")
+        self.generator.eval()
+        encoded_batches = []
+        for batch_idx, batch in enumerate(
+            tqdm(self.train_dataloader_raw, total=self.config.trainer.rvq_init_steps)
+        ):
+            if batch_idx >= self.config.trainer.rvq_init_steps:
+                break
+            batch = self.move_batch_to_device(batch)
+            batch = self.transform_batch(batch)
+            encoded_audio = self.generator.forward_encoder_only(**batch)
+            encoded_batches.append(encoded_audio.detach())
+
+        encoded_audio = torch.cat(encoded_batches, dim=0)
+        self.generator.rvq_init(
+            encoded_audio, num_iters=self.config.trainer.get("rvq_kmeans_num_iters", 5)
+        )
+
+        self.generator.train()

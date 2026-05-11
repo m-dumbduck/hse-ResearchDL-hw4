@@ -1,1 +1,8 @@
-from src.loss.example import ExampleLoss
+from src.loss.discriminator_adversarial_loss import DiscriminatorAdversarialLoss
+from src.loss.generator_adversarial_loss import GeneratorAdversarialLoss
+from src.loss.generator_commitment_loss import GeneratorCommitmentLoss
+from src.loss.generator_feature_loss import GeneratorFeatureLoss
+from src.loss.generator_multiscale_reconstruction_loss import (
+    GeneratorMultiscaleReconstructionLoss,
+)
+from src.loss.soundstream_generator_loss import SoundStreamGeneratorLoss

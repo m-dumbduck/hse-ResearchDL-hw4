@@ -17,11 +17,15 @@ class BaseTrainer:
 
     def __init__(
         self,
-        model,
-        criterion,
+        generator,
+        discriminator,
+        generator_criterion,
+        discriminator_criterion,
         metrics,
-        optimizer,
-        lr_scheduler,
+        generator_optimizer,
+        generator_lr_scheduler,
+        discriminator_optimizer,
+        discriminator_lr_scheduler,
         config,
         device,
         dataloaders,
@@ -33,7 +37,7 @@ class BaseTrainer:
     ):
         """
         Args:
-            model (nn.Module): PyTorch model.
+            generator (nn.Module): PyTorch model.
             criterion (nn.Module): loss function for model training.
             metrics (dict): dict with the definition of metrics for training
                 (metrics[train]) and inference (metrics[inference]). Each
@@ -66,14 +70,19 @@ class BaseTrainer:
         self.logger = logger
         self.log_step = config.trainer.get("log_step", 50)
 
-        self.model = model
-        self.criterion = criterion
-        self.optimizer = optimizer
-        self.lr_scheduler = lr_scheduler
+        self.generator = generator
+        self.discriminator = discriminator
+        self.generator_criterion = generator_criterion
+        self.discriminator_criterion = discriminator_criterion
+        self.generator_optimizer = generator_optimizer
+        self.generator_lr_scheduler = generator_lr_scheduler
+        self.discriminator_optimizer = discriminator_optimizer
+        self.discriminator_lr_scheduler = discriminator_lr_scheduler
         self.batch_transforms = batch_transforms
 
         # define dataloaders
         self.train_dataloader = dataloaders["train"]
+        self.train_dataloader_raw = dataloaders["train"]
         if epoch_len is None:
             # epoch-based training
             self.epoch_len = len(self.train_dataloader)
@@ -153,6 +162,9 @@ class BaseTrainer:
             self._save_checkpoint(self._last_epoch, save_best=False)
             raise e
 
+    def _on_train_start(self):
+        pass
+
     def _train_process(self):
         """
         Full training logic:
@@ -161,6 +173,7 @@ class BaseTrainer:
         and monitoring the performance improvement (for early stopping
         and saving the best checkpoint).
         """
+        self._on_train_start()
         not_improved_count = 0
         for epoch in range(self.start_epoch, self.epochs + 1):
             self._last_epoch = epoch
@@ -172,7 +185,7 @@ class BaseTrainer:
 
             # print logged information to the screen
             for key, value in logs.items():
-                self.logger.info(f"    {key:15s}: {value}")
+                self.logger.info(f"    {key: 15s}: {value}")
 
             # evaluate model performance according to configured metric,
             # save best checkpoint as model_best
@@ -198,7 +211,8 @@ class BaseTrainer:
                 this epoch.
         """
         self.is_train = True
-        self.model.train()
+        self.generator.train()
+        self.discriminator.train()
         self.train_metrics.reset()
         self.writer.set_step((epoch - 1) * self.epoch_len)
         self.writer.add_scalar("epoch", epoch)
@@ -224,12 +238,20 @@ class BaseTrainer:
             if batch_idx % self.log_step == 0:
                 self.writer.set_step((epoch - 1) * self.epoch_len + batch_idx)
                 self.logger.debug(
-                    "Train Epoch: {} {} Loss: {:.6f}".format(
-                        epoch, self._progress(batch_idx), batch["loss"].item()
+                    "Train Epoch: {} {} GenLoss: {:.6f} DiscLoss: {:.6f}".format(
+                        epoch,
+                        self._progress(batch_idx),
+                        batch["generator_loss"].item(),
+                        batch["discriminator_loss"].item(),
                     )
                 )
                 self.writer.add_scalar(
-                    "learning rate", self.lr_scheduler.get_last_lr()[0]
+                    "generator learning rate",
+                    self.generator_lr_scheduler.get_last_lr()[0],
+                )
+                self.writer.add_scalar(
+                    "discriminator learning rate",
+                    self.discriminator_lr_scheduler.get_last_lr()[0],
                 )
                 self._log_scalars(self.train_metrics)
                 self._log_batch(batch_idx, batch)
@@ -261,7 +283,8 @@ class BaseTrainer:
             logs (dict): logs that contain the information about evaluation.
         """
         self.is_train = False
-        self.model.eval()
+        self.generator.eval()
+        self.discriminator.eval()
         self.evaluation_metrics.reset()
         with torch.no_grad():
             for batch_idx, batch in tqdm(
@@ -373,14 +396,26 @@ class BaseTrainer:
                 )
         return batch
 
-    def _clip_grad_norm(self):
+    def _clip_grad_norm_generator(self):
         """
-        Clips the gradient norm by the value defined in
-        config.trainer.max_grad_norm
+        Clips the generator gradient norm by the value defined in
+        config.trainer.generator_max_grad_norm
         """
-        if self.config["trainer"].get("max_grad_norm", None) is not None:
+        if self.config["trainer"].get("generator_max_grad_norm", None) is not None:
             clip_grad_norm_(
-                self.model.parameters(), self.config["trainer"]["max_grad_norm"]
+                self.generator.parameters(),
+                self.config["trainer"]["generator_max_grad_norm"],
+            )
+
+    def _clip_grad_norm_discriminator(self):
+        """
+        Clips the discriminator gradient norm by the value defined in
+        config.trainer.discriminator_max_grad_norm
+        """
+        if self.config["trainer"].get("discriminator_max_grad_norm", None) is not None:
+            clip_grad_norm_(
+                self.discriminator.parameters(),
+                self.config["trainer"]["discriminator_max_grad_norm"],
             )
 
     @torch.no_grad()
@@ -393,7 +428,7 @@ class BaseTrainer:
         Returns:
             total_norm (float): the calculated norm.
         """
-        parameters = self.model.parameters()
+        parameters = self.generator.parameters()
         if isinstance(parameters, torch.Tensor):
             parameters = [parameters]
         parameters = [p for p in parameters if p.grad is not None]
@@ -462,13 +497,16 @@ class BaseTrainer:
                 'model_best.pth'(do not duplicate the checkpoint as
                 checkpoint-epochEpochNumber.pth)
         """
-        arch = type(self.model).__name__
+        arch = type(self.generator).__name__
         state = {
             "arch": arch,
             "epoch": epoch,
-            "state_dict": self.model.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
-            "lr_scheduler": self.lr_scheduler.state_dict(),
+            "generator_state_dict": self.generator.state_dict(),
+            "generator_optimizer": self.generator_optimizer.state_dict(),
+            "generator_lr_scheduler": self.generator_lr_scheduler.state_dict(),
+            "discriminator_state_dict": self.discriminator.state_dict(),
+            "discriminator_optimizer": self.discriminator_optimizer.state_dict(),
+            "discriminator_lr_scheduler": self.discriminator_lr_scheduler.state_dict(),
             "monitor_best": self.mnt_best,
             "config": self.config,
         }
@@ -499,7 +537,7 @@ class BaseTrainer:
         """
         resume_path = str(resume_path)
         self.logger.info(f"Loading checkpoint: {resume_path} ...")
-        checkpoint = torch.load(resume_path, self.device)
+        checkpoint = torch.load(resume_path, self.device, weights_only=False)
         self.start_epoch = checkpoint["epoch"] + 1
         self.mnt_best = checkpoint["monitor_best"]
 
@@ -509,7 +547,7 @@ class BaseTrainer:
                 "Warning: Architecture configuration given in the config file is different from that "
                 "of the checkpoint. This may yield an exception when state_dict is loaded."
             )
-        self.model.load_state_dict(checkpoint["state_dict"])
+        self.generator.load_state_dict(checkpoint["state_dict"])
 
         # load optimizer state from checkpoint only when optimizer type is not changed.
         if (
@@ -545,9 +583,9 @@ class BaseTrainer:
             self.logger.info(f"Loading model weights from: {pretrained_path} ...")
         else:
             print(f"Loading model weights from: {pretrained_path} ...")
-        checkpoint = torch.load(pretrained_path, self.device)
+        checkpoint = torch.load(pretrained_path, self.device, weights_only=False)
 
         if checkpoint.get("state_dict") is not None:
-            self.model.load_state_dict(checkpoint["state_dict"])
+            self.generator.load_state_dict(checkpoint["state_dict"])
         else:
-            self.model.load_state_dict(checkpoint)
+            self.generator.load_state_dict(checkpoint)

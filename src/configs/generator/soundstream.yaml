@@ -1,0 +1,37 @@
+model:
+  _target_: src.model.sound_stream.Generator
+  n_channels: 32
+  latent_channels: 512
+  n_codebooks: 8
+  codebook_size: 1024
+  ema_coef: 0.99
+
+
+optimizer:
+  _target_: torch.optim.Adam
+  lr: 1e-4
+
+lr_scheduler:
+  _target_: torch.optim.lr_scheduler.LambdaLR
+  lr_lambda:
+    _target_: src.scheduler.ConstantLRLambda
+
+loss_function:
+  _target_: src.loss.SoundStreamGeneratorLoss
+  adv_loss_weight: 1
+  adv_loss:
+    _target_: src.loss.GeneratorAdversarialLoss
+  feature_loss_weight: 100
+  feature_loss:
+    _target_: src.loss.GeneratorFeatureLoss
+  commitment_loss_weight: 1
+  commitment_loss:
+    _target_: src.loss.GeneratorCommitmentLoss
+
+  multiscale_reconstruction_loss_weight: 1
+  multiscale_reconstruction_loss:
+    _target_: src.loss.GeneratorMultiscaleReconstructionLoss
+    sample_rate: 16000
+    window_length_list: [64, 128, 256, 512, 1024, 2048]
+    n_mels: 64
+    power: 1.0

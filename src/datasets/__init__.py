@@ -1,1 +1,1 @@
-from src.datasets.example import ExampleDataset
+from src.datasets.libri_speech_dataset import LibriSpeechDataset

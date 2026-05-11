@@ -12,10 +12,11 @@ from src.utils.init_utils import set_random_seed, setup_saving_and_logging
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
-@hydra.main(version_base=None, config_path="src/configs", config_name="baseline")
+@hydra.main(version_base=None, config_path="src/configs", config_name="train")
 def main(config):
     """
-    Main script for training. Instantiates the model, optimizer, scheduler,
+    Main script for training. Instantiates the generator, discriminator, generator_optimizer,
+    discriminator_optimizer, generator_scheduler, discriminator_scheduler,
     metrics, logger, writer, and dataloaders. Runs Trainer to train and
     evaluate the model.
 
@@ -37,29 +38,53 @@ def main(config):
     # batch_transforms should be put on device
     dataloaders, batch_transforms = get_dataloaders(config, device)
 
-    # build model architecture, then print to console
-    model = instantiate(config.model).to(device)
-    logger.info(model)
+    # build models architecture, then print to console
+    generator = instantiate(config.generator.model).to(device)
+    discriminator = instantiate(config.discriminator.model).to(device)
+    logger.info(generator)
+    logger.info(discriminator)
 
     # get function handles of loss and metrics
-    loss_function = instantiate(config.loss_function).to(device)
+    generator_loss_function = instantiate(config.generator.loss_function).to(device)
+    discriminator_loss_function = instantiate(config.discriminator.loss_function).to(
+        device
+    )
     metrics = instantiate(config.metrics)
 
-    # build optimizer, learning rate scheduler
-    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    optimizer = instantiate(config.optimizer, params=trainable_params)
-    lr_scheduler = instantiate(config.lr_scheduler, optimizer=optimizer)
+    # build optimizers, learning rate schedulers
+    generator_trainable_params = filter(
+        lambda p: p.requires_grad, generator.parameters()
+    )
+    generator_optimizer = instantiate(
+        config.generator.optimizer, params=generator_trainable_params
+    )
+    generator_lr_scheduler = instantiate(
+        config.generator.lr_scheduler, optimizer=generator_optimizer
+    )
+    discriminator_trainable_params = filter(
+        lambda p: p.requires_grad, discriminator.parameters()
+    )
+    discriminator_optimizer = instantiate(
+        config.discriminator.optimizer, params=discriminator_trainable_params
+    )
+    discriminator_lr_scheduler = instantiate(
+        config.discriminator.lr_scheduler, optimizer=discriminator_optimizer
+    )
 
     # epoch_len = number of iterations for iteration-based training
     # epoch_len = None or len(dataloader) for epoch-based training
     epoch_len = config.trainer.get("epoch_len")
 
     trainer = Trainer(
-        model=model,
-        criterion=loss_function,
+        generator=generator,
+        discriminator=discriminator,
+        generator_criterion=generator_loss_function,
+        discriminator_criterion=discriminator_loss_function,
         metrics=metrics,
-        optimizer=optimizer,
-        lr_scheduler=lr_scheduler,
+        generator_optimizer=generator_optimizer,
+        generator_lr_scheduler=generator_lr_scheduler,
+        discriminator_optimizer=discriminator_optimizer,
+        discriminator_lr_scheduler=discriminator_lr_scheduler,
         config=config,
         device=device,
         dataloaders=dataloaders,

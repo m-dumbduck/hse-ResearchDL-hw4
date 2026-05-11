@@ -70,13 +70,18 @@ def get_dataloaders(config, device):
     for dataset_partition in config.datasets.keys():
         dataset = datasets[dataset_partition]
 
-        assert config.dataloader.batch_size <= len(dataset), (
-            f"The batch size ({config.dataloader.batch_size}) cannot "
+        if dataset_partition == "train":
+            dataloader_config = config.dataloader.train
+        else:
+            dataloader_config = config.dataloader.inference
+
+        assert dataloader_config.batch_size <= len(dataset), (
+            f"The batch size ({dataloader_config.batch_size}) cannot "
             f"be larger than the dataset length ({len(dataset)})"
         )
 
         partition_dataloader = instantiate(
-            config.dataloader,
+            dataloader_config,
             dataset=dataset,
             collate_fn=collate_fn,
             drop_last=(dataset_partition == "train"),
