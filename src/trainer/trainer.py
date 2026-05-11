@@ -1,6 +1,10 @@
+import io
+
+import numpy as np
 import torch
 import torchaudio
 from matplotlib import pyplot as plt
+from PIL import Image
 from sympy.solvers.diophantine.diophantine import reconstruct
 from tqdm.auto import tqdm
 
@@ -151,7 +155,17 @@ class Trainer(BaseTrainer):
     def _mel_to_image(self, mel):
         mel = mel.detach().cpu().squeeze(0)
         mel = torch.log(mel + 1e-12).numpy()
-        return plt.get_cmap("magma")(mel)[:, :, :3]
+        fig, ax = plt.subplots(figsize=(10, 4), dpi=120)
+        im = ax.imshow(mel, aspect="auto", origin="lower", cmap="magma")
+        ax.set_xlabel("Frames")
+        ax.set_ylabel("Mel bins")
+        fig.colorbar(im, ax=ax)
+        fig.tight_layout()
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png")
+        plt.close(fig)
+        buf.seek(0)
+        return np.array(Image.open(buf).convert("RGB"))
 
     def _on_train_start(self):
         self.init_rvq_codebooks()
