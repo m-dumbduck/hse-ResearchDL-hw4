@@ -4,7 +4,7 @@ train: # metrics that are calculated during training
     name: "MSE"
   - _target_: src.metrics.RVQPerplexityMetric
     name: "Perplexity"
-    codebook_size: ${generator.codebook_size}
+    codebook_size: ${generator.model.codebook_size}
     normalized: true
 inference: # metrics that are calculated during inference (eval)
   - _target_: src.metrics.MSEMetric
