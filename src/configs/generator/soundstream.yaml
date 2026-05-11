@@ -28,7 +28,7 @@ loss_function:
   commitment_loss:
     _target_: src.loss.GeneratorCommitmentLoss
 
-  multiscale_reconstruction_loss_weight: 0.1
+  multiscale_reconstruction_loss_weight: 0.5
   multiscale_reconstruction_loss:
     _target_: src.loss.GeneratorMultiscaleReconstructionLoss
     sample_rate: 16000

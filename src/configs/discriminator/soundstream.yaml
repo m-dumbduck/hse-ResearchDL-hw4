@@ -12,7 +12,7 @@ model:
 
 optimizer:
   _target_: torch.optim.Adam
-  lr: 1e-4
+  lr: 5e-5
 
 lr_scheduler:
   _target_: torch.optim.lr_scheduler.LambdaLR
