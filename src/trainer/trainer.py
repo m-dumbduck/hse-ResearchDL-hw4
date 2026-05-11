@@ -36,41 +36,59 @@ class Trainer(BaseTrainer):
 
         if self.is_train:
             metric_funcs = self.metrics["train"]
-            self.generator_optimizer.zero_grad()
-            self.discriminator_optimizer.zero_grad()
+            self.generator_optimizer.zero_grad(set_to_none=True)
+            self.discriminator_optimizer.zero_grad(set_to_none=True)
 
-            # D step
-            generator_outputs = self.generator(**batch)
-            batch.update(generator_outputs)
-            discriminator_outputs = self.discriminator.forward_for_both(
-                audio=batch["audio"],
-                reconstructed_audio=batch["reconstructed_audio"].detach(),
-            )
-            batch.update(discriminator_outputs)
-            discriminator_loss = self.discriminator_criterion(**batch)
-            batch.update(discriminator_loss)
+            with torch.autocast(
+                device_type="cuda", dtype=self.autocast_dtype, enabled=self.use_autocast
+            ):
+                generator_outputs = self.generator(**batch)
+                batch.update(generator_outputs)
 
-            batch["discriminator_loss"].backward()
+                # Discriminator step
+                discriminator_outputs = self.discriminator.forward_for_both(
+                    audio=batch["audio"],
+                    reconstructed_audio=batch["reconstructed_audio"].detach(),
+                )
+                batch.update(discriminator_outputs)
+                discriminator_loss = self.discriminator_criterion(**batch)
+                batch.update(discriminator_loss)
+
+            self.autocast_scaler.scale(batch["discriminator_loss"]).backward()
+            self.autocast_scaler.unscale_(self.discriminator_optimizer)
             self._clip_grad_norm_discriminator()
-            self.discriminator_optimizer.step()
+            self.autocast_scaler.step(self.discriminator_optimizer)
             if self.discriminator_lr_scheduler is not None:
                 self.discriminator_lr_scheduler.step()
 
-            self.generator_optimizer.zero_grad()
-            self.discriminator_optimizer.zero_grad()
+            # Generator step
+            for p in self.discriminator.parameters():
+                p.requires_grad_(False)
 
-            # G step
-            generator_outputs = self.generator(**batch)
-            batch.update(generator_outputs)
-            discriminator_outputs = self.discriminator.forward_for_both(**batch)
-            batch.update(discriminator_outputs)
-            generator_loss = self.generator_criterion(**batch)
-            batch.update(generator_loss)
-            batch["generator_loss"].backward()
+            with torch.autocast(
+                device_type="cuda", dtype=self.autocast_dtype, enabled=self.use_autocast
+            ):
+                with torch.no_grad():
+                    batch["discriminator_for_audio"] = self.discriminator(
+                        audio=batch["audio"]
+                    )
+                batch["discriminator_for_reconstructed_audio"] = self.discriminator(
+                    audio=batch["reconstructed_audio"]
+                )
+
+                generator_loss = self.generator_criterion(**batch)
+                batch.update(generator_loss)
+
+            self.autocast_scaler.scale(batch["generator_loss"]).backward()
+            self.autocast_scaler.unscale_(self.generator_optimizer)
             self._clip_grad_norm_generator()
-            self.generator_optimizer.step()
+            self.autocast_scaler.step(self.generator_optimizer)
             if self.generator_lr_scheduler is not None:
                 self.generator_lr_scheduler.step()
+            self.autocast_scaler.update()
+
+            for p in self.discriminator.parameters():
+                p.requires_grad_(True)
 
             # update metrics for each loss (in case of multiple losses)
             for loss_name in self.config.writer.loss_names:
@@ -79,12 +97,6 @@ class Trainer(BaseTrainer):
             metric_funcs = self.metrics["inference"]
             generator_outputs = self.generator(**batch)
             batch.update(generator_outputs)
-            # discriminator_outputs = self.discriminator.forward_for_both(**batch)
-            # batch.update(discriminator_outputs)
-            # generator_loss = self.generator_criterion(**batch)
-            # batch.update(generator_loss)
-            # discriminator_loss = self.discriminator_criterion(**batch)
-            # batch.update(discriminator_loss)
 
         for met in metric_funcs:
             metrics.update(met.name, met(**batch))

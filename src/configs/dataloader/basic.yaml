@@ -1,11 +1,13 @@
 train:
   _target_: torch.utils.data.DataLoader
   batch_size: 12
-  num_workers: 0
+  num_workers: 2
   pin_memory: True
+  persistent_workers: True
 
 inference:
   _target_: torch.utils.data.DataLoader
-  batch_size: 1
-  num_workers: 0
+  batch_size: 24
+  num_workers: 2
   pin_memory: True
+  persistent_workers: True

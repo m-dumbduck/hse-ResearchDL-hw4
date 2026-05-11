@@ -44,7 +44,7 @@ class Generator(BaseModel):
         } | rvq_outputs
 
     def rvq_done_initial_clustering(self):
-        return self.rvq.done_initial_clustering
+        return self.rvq.done_initial_clustering.item()
 
     def rvq_init(self, X, num_iters):
         self.rvq.init_embeddings(X, num_iters)

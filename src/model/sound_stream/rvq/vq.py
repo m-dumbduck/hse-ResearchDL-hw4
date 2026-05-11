@@ -16,7 +16,6 @@ class VQ(BaseModel):
         self.codebook_size = codebook_size
         self.embedding_dim = embedding_dim
         self.ema_coef = ema_coef
-        self.done_initial_clustering = False
 
         self.codebook = nn.Embedding(
             num_embeddings=codebook_size, embedding_dim=embedding_dim
@@ -24,21 +23,23 @@ class VQ(BaseModel):
         for param in self.codebook.parameters():
             param.requires_grad = False
 
-        self.register_buffer(
-            "ema_count",
-            torch.zeros(codebook_size),
-        )
+        self.register_buffer("ema_count", torch.zeros(codebook_size))
         self.register_buffer("ema_embed_sum", self.codebook.weight.detach().clone())
+        self.register_buffer("done_initial_clustering", torch.tensor(False))
 
     def forward(self, X):
         X = X.transpose(1, 2)
-        closest_indexes = torch.cdist(X.detach(), self.codebook.weight).argmin(dim=-1)
-        quantized = self.codebook(closest_indexes)
+        with torch.autocast(device_type=X.device.type, enabled=False):
+            X_float32 = X.float()
+            closest_indexes = torch.cdist(
+                X_float32.detach(), self.codebook.weight
+            ).argmin(dim=-1)
+            quantized = self.codebook(closest_indexes)
+            if self.training:
+                self.update_codebook(
+                    X_float32.detach().flatten(0, 1), closest_indexes.flatten(0, 1)
+                )
         pred = X + (quantized - X).detach()
-        if self.training:
-            self.update_codebook(
-                X.detach().flatten(0, 1), closest_indexes.flatten(0, 1)
-            )
         return {
             "quantized": pred.transpose(1, 2),
             "quantized_raw": quantized.transpose(1, 2),
@@ -70,7 +71,7 @@ class VQ(BaseModel):
 
     @torch.no_grad()
     def init_embeddings(self, X, num_iters):
-        self.done_initial_clustering = True
+        self.done_initial_clustering.fill_(True)
         X = X.transpose(1, 2).detach()
         input_embeds = X.flatten(0, 1).clone()
         centers_indexes = torch.randperm(

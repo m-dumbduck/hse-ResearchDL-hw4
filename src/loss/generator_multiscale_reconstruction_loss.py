@@ -8,10 +8,15 @@ class GeneratorMultiscaleReconstructionLoss(nn.Module):
         super().__init__()
         self.l1_loss = nn.L1Loss()
         self.l2_loss = nn.MSELoss()
-        self.alphas = [
-            torch.sqrt(torch.tensor(window_length) / 2)
-            for window_length in window_length_list
-        ]
+        self.register_buffer(
+            "alphas",
+            torch.tensor(
+                [
+                    torch.sqrt(torch.tensor(window_length) / 2)
+                    for window_length in window_length_list
+                ]
+            ),
+        )
         self.mel_transforms = nn.ModuleList(
             [
                 torchaudio.transforms.MelSpectrogram(

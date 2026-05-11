@@ -20,7 +20,7 @@ class RVQ(BaseModel):
         self.codebook_size = codebook_size
         self.embedding_dim = embedding_dim
         self.ema_coef = ema_coef
-        self.done_initial_clustering = False
+        self.register_buffer("done_initial_clustering", torch.tensor(False))
 
         self.vqs = nn.ModuleList(
             [
@@ -56,7 +56,7 @@ class RVQ(BaseModel):
 
     @torch.no_grad()
     def init_embeddings(self, X, num_iters):
-        self.done_initial_clustering = True
+        self.done_initial_clustering.fill_(True)
         X = X.detach()
         quantized = 0
         for vq in self.vqs:

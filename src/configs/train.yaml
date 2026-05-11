@@ -12,12 +12,12 @@ defaults:
 trainer:
   generator_max_grad_norm: 200
   discriminator_max_grad_norm: 200
-  rvq_init_steps: 64
-  rvq_kmeans_num_iters: 20
+  rvq_init_steps: 128
+  rvq_kmeans_num_iters: 40
 
-  log_step: 50
-  n_epochs: 20
-  epoch_len: 1
+  log_step: 100
+  n_epochs: 15
+  epoch_len: 5000
   device_tensors: ["audio"] # which tensors should be on device (ex. GPU)
   resume_from: null # null or path to the checkpoint dir with *.pth and config.yaml
   device: auto # device name or "auto"

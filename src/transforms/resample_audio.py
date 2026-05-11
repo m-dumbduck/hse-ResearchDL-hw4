@@ -19,6 +19,8 @@ class ResampleAudio(nn.Module):
         Returns:
             x (Tensor): padded tensor.
         """
+        if x[self.sample_rate_key] == self.target_sample_rate:
+            return x
         x[self.data_object_key] = torchaudio.functional.resample(
             x[self.data_object_key], x[self.sample_rate_key], self.target_sample_rate
         )
