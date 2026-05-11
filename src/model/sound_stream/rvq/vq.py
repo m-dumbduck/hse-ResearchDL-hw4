@@ -29,16 +29,12 @@ class VQ(BaseModel):
 
     def forward(self, X):
         X = X.transpose(1, 2)
-        with torch.autocast(device_type=X.device.type, enabled=False):
-            X_float32 = X.float()
-            closest_indexes = torch.cdist(
-                X_float32.detach(), self.codebook.weight
-            ).argmin(dim=-1)
-            quantized = self.codebook(closest_indexes)
-            if self.training:
-                self.update_codebook(
-                    X_float32.detach().flatten(0, 1), closest_indexes.flatten(0, 1)
-                )
+        closest_indexes = torch.cdist(X.detach(), self.codebook.weight).argmin(dim=-1)
+        quantized = self.codebook(closest_indexes)
+        if self.training:
+            self.update_codebook(
+                X.detach().flatten(0, 1), closest_indexes.flatten(0, 1)
+            )
         pred = X + (quantized - X).detach()
         return {
             "quantized": pred.transpose(1, 2),

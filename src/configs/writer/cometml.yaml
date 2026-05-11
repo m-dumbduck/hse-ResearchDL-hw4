@@ -1,7 +1,7 @@
 _target_: src.logger.CometMLWriter
 project_name: "hse-dl-hw-4"
 workspace: null
-run_name: "debug"
+run_name: "train"
 mode: "online"
 loss_names: ["generator_loss", "discriminator_loss", "generator_adv_loss", "generator_feature_loss", "generator_multiscale_reconstruction_loss", "generator_commitment_loss"] # which losses to log (useful for multi-loss tasks, s.a. GANs)
 log_checkpoints: False # set to True if you want to log save_dir with checkpoints to W&B

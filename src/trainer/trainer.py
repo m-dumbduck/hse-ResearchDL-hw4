@@ -39,25 +39,21 @@ class Trainer(BaseTrainer):
             self.generator_optimizer.zero_grad(set_to_none=True)
             self.discriminator_optimizer.zero_grad(set_to_none=True)
 
-            with torch.autocast(
-                device_type="cuda", dtype=self.autocast_dtype, enabled=self.use_autocast
-            ):
-                generator_outputs = self.generator(**batch)
-                batch.update(generator_outputs)
+            generator_outputs = self.generator(**batch)
+            batch.update(generator_outputs)
 
-                # Discriminator step
-                discriminator_outputs = self.discriminator.forward_for_both(
-                    audio=batch["audio"],
-                    reconstructed_audio=batch["reconstructed_audio"].detach(),
-                )
-                batch.update(discriminator_outputs)
-                discriminator_loss = self.discriminator_criterion(**batch)
-                batch.update(discriminator_loss)
+            # Discriminator step
+            discriminator_outputs = self.discriminator.forward_for_both(
+                audio=batch["audio"],
+                reconstructed_audio=batch["reconstructed_audio"].detach(),
+            )
+            batch.update(discriminator_outputs)
+            discriminator_loss = self.discriminator_criterion(**batch)
+            batch.update(discriminator_loss)
 
-            self.autocast_scaler.scale(batch["discriminator_loss"]).backward()
-            self.autocast_scaler.unscale_(self.discriminator_optimizer)
+            batch["discriminator_loss"].backward()
             self._clip_grad_norm_discriminator()
-            self.autocast_scaler.step(self.discriminator_optimizer)
+            self.discriminator_optimizer.step()
             if self.discriminator_lr_scheduler is not None:
                 self.discriminator_lr_scheduler.step()
 
@@ -65,27 +61,22 @@ class Trainer(BaseTrainer):
             for p in self.discriminator.parameters():
                 p.requires_grad_(False)
 
-            with torch.autocast(
-                device_type="cuda", dtype=self.autocast_dtype, enabled=self.use_autocast
-            ):
-                with torch.no_grad():
-                    batch["discriminator_for_audio"] = self.discriminator(
-                        audio=batch["audio"]
-                    )
-                batch["discriminator_for_reconstructed_audio"] = self.discriminator(
-                    audio=batch["reconstructed_audio"]
+            with torch.no_grad():
+                batch["discriminator_for_audio"] = self.discriminator(
+                    audio=batch["audio"]
                 )
+            batch["discriminator_for_reconstructed_audio"] = self.discriminator(
+                audio=batch["reconstructed_audio"]
+            )
 
-                generator_loss = self.generator_criterion(**batch)
-                batch.update(generator_loss)
+            generator_loss = self.generator_criterion(**batch)
+            batch.update(generator_loss)
 
-            self.autocast_scaler.scale(batch["generator_loss"]).backward()
-            self.autocast_scaler.unscale_(self.generator_optimizer)
+            batch["generator_loss"].backward()
             self._clip_grad_norm_generator()
-            self.autocast_scaler.step(self.generator_optimizer)
+            self.generator_optimizer.step()
             if self.generator_lr_scheduler is not None:
                 self.generator_lr_scheduler.step()
-            self.autocast_scaler.update()
 
             for p in self.discriminator.parameters():
                 p.requires_grad_(True)

@@ -81,11 +81,6 @@ class BaseTrainer:
         self.discriminator_lr_scheduler = discriminator_lr_scheduler
         self.batch_transforms = batch_transforms
 
-        # autocast swag
-        self.use_autocast = self.device.startswith("cuda")
-        self.autocast_dtype = torch.float16
-        self.autocast_scaler = torch.amp.GradScaler("cuda", enabled=self.use_autocast)
-
         # define dataloaders
         self.train_dataloader = dataloaders["train"]
         self.train_dataloader_raw = dataloaders["train"]
@@ -514,7 +509,6 @@ class BaseTrainer:
             "discriminator_state_dict": self.discriminator.state_dict(),
             "discriminator_optimizer": self.discriminator_optimizer.state_dict(),
             "discriminator_lr_scheduler": self.discriminator_lr_scheduler.state_dict(),
-            "autocast_scaler": self.autocast_scaler.state_dict(),
             "monitor_best": self.mnt_best,
             "config": self.config,
         }
@@ -561,7 +555,6 @@ class BaseTrainer:
         self.discriminator_lr_scheduler.load_state_dict(
             checkpoint["discriminator_lr_scheduler"]
         )
-        self.autocast_scaler.load_state_dict(checkpoint["autocast_scaler"])
 
         self.logger.info(
             f"Checkpoint loaded. Resume training from epoch {self.start_epoch}"
