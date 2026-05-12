@@ -560,7 +560,7 @@ class BaseTrainer:
             f"Checkpoint loaded. Resume training from epoch {self.start_epoch}"
         )
 
-    def _from_pretrained(self, pretrained_path):
+    def _from_pretrained(self, pretrained_path, load_discriminator=False):
         """
         Init model with weights from pretrained pth file.
 
@@ -580,3 +580,7 @@ class BaseTrainer:
         if "generator_state_dict" not in checkpoint:
             raise KeyError("Invalid checkpoint: No generator state dict.")
         self.generator.load_state_dict(checkpoint["generator_state_dict"])
+        if load_discriminator:
+            if "discriminator_state_dict" not in checkpoint:
+                raise KeyError("Invalid checkpoint: No discriminator state dict.")
+            self.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
