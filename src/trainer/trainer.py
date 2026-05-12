@@ -113,8 +113,8 @@ class Trainer(BaseTrainer):
         # method to log data from you batch
         # such as audio, text or images, for example
 
-        audio = batch["audio"][0]
-        reconstructed_audio = batch["reconstructed_audio"][0]
+        audio = batch["audio"][0].detach()
+        reconstructed_audio = batch["reconstructed_audio"][0].detach()
         sample_rate = int(batch["sample_rate"][0])
 
         self.writer.add_audio(
@@ -138,12 +138,10 @@ class Trainer(BaseTrainer):
         ).to(self.device)
 
         self.writer.add_image(
-            f"{mode}/mel/original", self._mel_to_image(mel_transform(audio))
-        )
-
-        self.writer.add_image(
-            f"{mode}/mel/reconstructed",
-            self._mel_to_image(mel_transform(reconstructed_audio)),
+            f"{mode}/mel/original_vs_reconstructed",
+            self._mel_comparison_plot(
+                mel_transform(audio).cpu(), mel_transform(reconstructed_audio).cpu()
+            ),
         )
 
         # logging scheme might be different for different partitions
@@ -152,15 +150,39 @@ class Trainer(BaseTrainer):
         else:
             pass
 
-    def _mel_to_image(self, mel):
-        mel = mel.detach().cpu().squeeze(0)
-        mel = torch.log(mel + 1e-12).numpy()
-        fig, ax = plt.subplots(figsize=(10, 4), dpi=120)
-        im = ax.imshow(mel, aspect="auto", origin="lower", cmap="magma")
-        ax.set_xlabel("Frames")
-        ax.set_ylabel("Mel bins")
-        fig.colorbar(im, ax=ax)
+    def _mel_comparison_plot(self, mel_original, mel_reconstructed):
+        mel_original = torch.log(mel_original.squeeze(0) + 1e-12).numpy()
+        mel_reconstructed = torch.log(mel_reconstructed.squeeze(0) + 1e-12).numpy()
+        vmin = min(mel_original.min(), mel_reconstructed.min())
+        vmax = max(mel_original.max(), mel_reconstructed.max())
+
+        fig, axes = plt.subplots(1, 2, figsize=(12, 4), dpi=120)
+        axes[0].imshow(
+            mel_original,
+            aspect="auto",
+            origin="lower",
+            cmap="magma",
+            vmin=vmin,
+            vmax=vmax,
+        )
+        axes[0].set_title("Original")
+        axes[0].set_xlabel("Frames")
+        axes[0].set_ylabel("Mel bins")
+
+        axes[1].imshow(
+            mel_reconstructed,
+            aspect="auto",
+            origin="lower",
+            cmap="magma",
+            vmin=vmin,
+            vmax=vmax,
+        )
+        axes[1].set_title("Reconstructed")
+        axes[1].set_xlabel("Frames")
+        axes[1].set_ylabel("Mel bins")
+
         fig.tight_layout()
+
         buf = io.BytesIO()
         fig.savefig(buf, format="png")
         plt.close(fig)
