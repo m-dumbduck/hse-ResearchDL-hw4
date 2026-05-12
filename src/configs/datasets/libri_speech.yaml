@@ -7,4 +7,3 @@ test:
   _target_: src.datasets.LibriSpeechDataset
   name: "test-clean"
   instance_transforms: ${transforms.instance_transforms.inference}
-  limit: 720
