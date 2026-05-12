@@ -149,7 +149,10 @@ class BaseTrainer:
             self._resume_checkpoint(resume_path)
 
         if config.trainer.get("from_pretrained") is not None:
-            self._from_pretrained(config.trainer.get("from_pretrained"))
+            self._from_pretrained(
+                config.trainer.get("from_pretrained"),
+                load_discriminator=config.trainer.get("load_discriminator", False),
+            )
 
     def train(self):
         """
