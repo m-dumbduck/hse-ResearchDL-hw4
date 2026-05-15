@@ -1,9 +1,11 @@
 import soundfile
 import torch
+import torchaudio
 from tqdm.auto import tqdm
 
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
+from src.utils.mel_specs_utils import mel_comparison_plot
 
 
 class Inferencer(BaseTrainer):
@@ -22,6 +24,7 @@ class Inferencer(BaseTrainer):
         pretrained_type,
         device,
         dataloaders,
+        writer,
         save_path,
         metrics=None,
         batch_transforms=None,
@@ -68,6 +71,10 @@ class Inferencer(BaseTrainer):
         # path definition
 
         self.save_path = save_path
+
+        # define writer
+        self.writer = writer
+        self.logged_batches = {}
 
         # define metrics
         self.metrics = metrics
@@ -162,6 +169,14 @@ class Inferencer(BaseTrainer):
                     samplerate=sample_rate,
                 )
 
+        if self.writer is not None:
+            logged = self.logged_batches.get(part, 0)
+            max_batches_to_log = self.config.inferencer.get("max_batches_to_log", 1)
+            if logged < max_batches_to_log:
+                self.writer.set_step(logged, part)
+                self._log_batch(batch, part)
+                self.logged_batches[part] = logged + 1
+
         return batch
 
     def _inference_part(self, part, dataloader):
@@ -197,4 +212,44 @@ class Inferencer(BaseTrainer):
                     metrics=self.evaluation_metrics,
                 )
 
-        return self.evaluation_metrics.result()
+        logs = self.evaluation_metrics.result()
+
+        if self.writer is not None:
+            self.writer.set_step(0, part)
+            self.writer.add_scalars(logs)
+
+        return logs
+
+    def _log_batch(self, batch, part):
+        if self.writer is None:
+            return
+        audio = batch["audio"][0].detach()
+        reconstructed_audio = batch["reconstructed_audio"][0].detach()
+        sample_rate = int(batch["sample_rate"][0])
+
+        self.writer.add_audio(
+            f"{part}/audio/original",
+            audio=audio,
+            sample_rate=sample_rate,
+        )
+
+        self.writer.add_audio(
+            f"{part}/audio/reconstructed",
+            audio=reconstructed_audio,
+            sample_rate=sample_rate,
+        )
+
+        mel_transform = torchaudio.transforms.MelSpectrogram(
+            sample_rate=sample_rate,
+            win_length=self.config.log_mel.win_length,
+            n_fft=self.config.log_mel.win_length,
+            hop_length=self.config.log_mel.hop_length,
+            n_mels=self.config.log_mel.n_mels,
+        ).to(self.device)
+
+        self.writer.add_image(
+            f"{part}/mel/original_vs_reconstructed",
+            mel_comparison_plot(
+                mel_transform(audio).cpu(), mel_transform(reconstructed_audio).cpu()
+            ),
+        )

@@ -1,14 +1,17 @@
 defaults:
   - generator: soundstream
-  - metrics: baseline
-  - datasets: libri_speech_inference # we do not want to run inference on training data
+  - metrics: analysis
+  - datasets: inference # we do not want to run inference on training data
   - dataloader: basic
   - transforms: basic
+  - writer: cometml_inference
+  - log_mel: basic
   - _self_
 inferencer:
   device_tensors: ["audio"] # which tensors should be on device (ex. GPU)
   device: auto # device name or "auto"
   save_path: "example" # any name here, can be a dataset name
   seed: 1
+  max_batches_to_log: 100
   from_pretrained: "ldiujes/SoundStream" # path to the pretrained model or HuggingFace repo with PyTorchModelHubMixin
   from_pretrained_type: "hf" # file | hf

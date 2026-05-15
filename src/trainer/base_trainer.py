@@ -1,10 +1,6 @@
-from abc import abstractmethod
-from pathlib import Path
-
 import torch
 from numpy import inf
 from safetensors.torch import load_file
-from sympy.physics.continuum_mechanics import arch
 from torch.nn.utils import clip_grad_norm_
 from tqdm.auto import tqdm
 
@@ -463,23 +459,6 @@ class BaseTrainer:
             current = batch_idx
             total = self.epoch_len
         return base.format(current, total, 100.0 * current / total)
-
-    @abstractmethod
-    def _log_batch(self, batch_idx, batch, mode="train"):
-        """
-        Abstract method. Should be defined in the nested Trainer Class.
-
-        Log data from batch. Calls self.writer.add_* to log data
-        to the experiment tracker.
-
-        Args:
-            batch_idx (int): index of the current batch.
-            batch (dict): dict-based batch after going through
-                the 'process_batch' function.
-            mode (str): train or inference. Defines which logging
-                rules to apply.
-        """
-        return NotImplementedError()
 
     def _log_scalars(self, metric_tracker: MetricTracker):
         """

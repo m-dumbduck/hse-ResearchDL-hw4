@@ -44,9 +44,10 @@ class CometMLWriter:
 
             self.run_id = run_id
 
-            resume = False
-            if project_config["trainer"].get("resume_from") is not None:
-                resume = True
+            runner_cfg = (
+                project_config.get("trainer") or project_config.get("inferencer") or {}
+            )
+            resume = runner_cfg.get("resume_from") is not None
 
             if resume:
                 if mode == "offline":

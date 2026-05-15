@@ -1,15 +1,10 @@
-import io
-
-import numpy as np
 import torch
 import torchaudio
-from matplotlib import pyplot as plt
-from PIL import Image
-from sympy.solvers.diophantine.diophantine import reconstruct
 from tqdm.auto import tqdm
 
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
+from src.utils.mel_specs_utils import mel_comparison_plot
 
 
 class Trainer(BaseTrainer):
@@ -131,15 +126,15 @@ class Trainer(BaseTrainer):
 
         mel_transform = torchaudio.transforms.MelSpectrogram(
             sample_rate=sample_rate,
-            win_length=self.config.trainer.log_mel.win_length,
-            n_fft=self.config.trainer.log_mel.win_length,
-            hop_length=self.config.trainer.log_mel.hop_length,
-            n_mels=self.config.trainer.log_mel.n_mels,
+            win_length=self.config.log_mel.win_length,
+            n_fft=self.config.log_mel.win_length,
+            hop_length=self.config.log_mel.hop_length,
+            n_mels=self.config.log_mel.n_mels,
         ).to(self.device)
 
         self.writer.add_image(
             f"{mode}/mel/original_vs_reconstructed",
-            self._mel_comparison_plot(
+            mel_comparison_plot(
                 mel_transform(audio).cpu(), mel_transform(reconstructed_audio).cpu()
             ),
         )
@@ -149,45 +144,6 @@ class Trainer(BaseTrainer):
             pass
         else:
             pass
-
-    def _mel_comparison_plot(self, mel_original, mel_reconstructed):
-        mel_original = torch.log(mel_original.squeeze(0) + 1e-12).numpy()
-        mel_reconstructed = torch.log(mel_reconstructed.squeeze(0) + 1e-12).numpy()
-        vmin = min(mel_original.min(), mel_reconstructed.min())
-        vmax = max(mel_original.max(), mel_reconstructed.max())
-
-        fig, axes = plt.subplots(1, 2, figsize=(12, 4), dpi=120)
-        axes[0].imshow(
-            mel_original,
-            aspect="auto",
-            origin="lower",
-            cmap="magma",
-            vmin=vmin,
-            vmax=vmax,
-        )
-        axes[0].set_title("Original")
-        axes[0].set_xlabel("Frames")
-        axes[0].set_ylabel("Mel bins")
-
-        axes[1].imshow(
-            mel_reconstructed,
-            aspect="auto",
-            origin="lower",
-            cmap="magma",
-            vmin=vmin,
-            vmax=vmax,
-        )
-        axes[1].set_title("Reconstructed")
-        axes[1].set_xlabel("Frames")
-        axes[1].set_ylabel("Mel bins")
-
-        fig.tight_layout()
-
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png")
-        plt.close(fig)
-        buf.seek(0)
-        return np.array(Image.open(buf).convert("RGB"))
 
     def _on_train_start(self):
         self.init_rvq_codebooks()

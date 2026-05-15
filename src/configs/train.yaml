@@ -6,6 +6,7 @@ defaults:
   - datasets: libri_speech
   - dataloader: basic
   - transforms: basic
+  - log_mel: basic
   - _self_
 
 
@@ -27,7 +28,3 @@ trainer:
   early_stop: ${trainer.n_epochs} # epochs for early stopping
   save_dir: "saved"
   seed: 1
-  log_mel:
-    win_length: 1024
-    hop_length: 256
-    n_mels: 64

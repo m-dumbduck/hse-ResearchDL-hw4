@@ -1,0 +1,20 @@
+device: "auto"
+inference:
+  - _target_: src.metrics.MSEMetric
+    name: "MSE"
+  - _target_: src.metrics.STOIMetric
+    name: "STOI"
+  - _target_: src.metrics.NISQAMOSMetric
+    name: "NISQA_MOS"
+  - _target_: src.metrics.ZeroCrossingRateMetric
+    name: "OriginalZCR"
+    use_reconstructed: false
+  - _target_: src.metrics.ZeroCrossingRateMetric
+    name: "ReconstructedZCR"
+    use_reconstructed: true
+  - _target_: src.metrics.SpectralCentroidMetric
+    name: "OriginalSpectralCentroid"
+    use_reconstructed: false
+  - _target_: src.metrics.SpectralCentroidMetric
+    name: "ReconstructedSpectralCentroid"
+    use_reconstructed: true
