@@ -1,0 +1,13 @@
+inference:
+  - _target_: src.transforms.ToTensor
+    data_object_key: "audio"
+  - _target_: src.transforms.Permute
+    data_object_key: "audio"
+    order: [1, 0]
+  - _target_: src.transforms.ResampleAudio
+    data_object_key: "audio"
+    sample_rate_key: "sample_rate"
+    target_sample_rate: 16000
+  - _target_: src.transforms.CropToLength
+    data_object_key: "audio"
+    length: 240000
