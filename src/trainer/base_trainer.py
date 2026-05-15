@@ -580,10 +580,14 @@ class BaseTrainer:
         else:
             print(f"Loading model weights from: {pretrained_path} ...")
         checkpoint = torch.load(pretrained_path, self.device, weights_only=False)
-        if "generator_state_dict" not in checkpoint:
-            raise KeyError("Invalid checkpoint: No generator state dict.")
-        self.generator.load_state_dict(checkpoint["generator_state_dict"])
+        if checkpoint.get("generator_state_dict") is not None:
+            self.generator.load_state_dict(checkpoint["generator_state_dict"])
+        else:
+            self.generator.load_state_dict(checkpoint)
+
         if load_discriminator:
-            if "discriminator_state_dict" not in checkpoint:
-                raise KeyError("Invalid checkpoint: No discriminator state dict.")
+            if checkpoint.get("discriminator_state_dict") is None:
+                raise KeyError(
+                    "Config load_discriminator set to True, but no discriminator state dict."
+                )
             self.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])

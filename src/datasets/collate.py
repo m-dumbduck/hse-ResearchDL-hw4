@@ -22,9 +22,9 @@ def collate_fn(dataset_items: list[dict]):
         [elem["audio"].shape[1] for elem in dataset_items]
     )
     max_length = torch.max(result_batch["raw_length"])
+    # used 200 because encoder shrinks sequence by 5*5*4*2=200 times
     max_length += (200 - max_length % 200) % 200
 
-    # example of collate_fn
     result_batch["audio"] = torch.stack(
         [
             F.pad(elem["audio"], (0, max_length - elem["audio"].shape[1]), value=0.0)

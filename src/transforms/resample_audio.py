@@ -5,7 +5,7 @@ from torch import nn
 
 class ResampleAudio(nn.Module):
     def __init__(
-        self, data_object_key: str, sample_rate_key: int, target_sample_rate: int
+        self, data_object_key: str, sample_rate_key: str, target_sample_rate: int
     ):
         super().__init__()
         self.data_object_key = data_object_key

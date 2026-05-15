@@ -1,7 +1,7 @@
 defaults:
-  - model: baseline
+  - generator: soundstream
   - metrics: baseline
-  - datasets: libri_speech_test # we do not want to run inference on training data
+  - datasets: libri_speech_inference # we do not want to run inference on training data
   - dataloader: basic
   - transforms: basic
   - _self_
@@ -10,4 +10,4 @@ inferencer:
   device: auto # device name or "auto"
   save_path: "example" # any name here, can be a dataset name
   seed: 1
-  from_pretrained: "saved/model_best.pth" # path to the pretrained model
+  from_pretrained: "saved/soundstream_generator.pth" # path to the pretrained model
