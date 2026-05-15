@@ -13,9 +13,6 @@ pandas
 
 comet_ml
 huggingface_hub
+safetensors
 hydra-core
 requests
-
-black
-isort
-pre-commit

@@ -43,6 +43,9 @@ class VQ(BaseModel):
             "vq_indexes": closest_indexes,
         }
 
+    def decode_from_indexes(self, indexes):
+        return self.codebook(indexes).transpose(1, 2)
+
     @torch.no_grad()
     def update_codebook(self, X, indexes):
         current_counts = torch.bincount(indexes, minlength=self.codebook_size)

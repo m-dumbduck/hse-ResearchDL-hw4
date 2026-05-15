@@ -54,6 +54,12 @@ class RVQ(BaseModel):
             "rvq_indexes": indexes,
         }
 
+    def decode_from_indexes(self, indexes):
+        result = 0
+        for i, vq in enumerate(self.vqs):
+            result += vq.decode_from_indexes(indexes[:, i, :])
+        return result
+
     @torch.no_grad()
     def init_embeddings(self, X, num_iters):
         self.done_initial_clustering.fill_(True)

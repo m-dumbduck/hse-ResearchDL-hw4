@@ -1,4 +1,4 @@
-from torch import nn
+from huggingface_hub import PyTorchModelHubMixin
 
 from src.model.base_model import BaseModel
 from src.model.sound_stream.decoder import Decoder
@@ -6,7 +6,7 @@ from src.model.sound_stream.encoder import Encoder
 from src.model.sound_stream.rvq import RVQ
 
 
-class Generator(BaseModel):
+class Generator(BaseModel, PyTorchModelHubMixin):
     """
     Simple generator
     """
@@ -51,3 +51,9 @@ class Generator(BaseModel):
 
     def forward_encoder_only(self, audio, **batch):
         return self.encoder(audio)
+
+    def encode_to_indexes(self, audio):
+        return self.rvq(self.encoder(audio))["rvq_indexes"]
+
+    def decode_from_indexes(self, indexes):
+        return self.decoder(self.rvq.decode_from_indexes(indexes))
