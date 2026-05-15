@@ -1,7 +1,9 @@
 import warnings
+from pathlib import Path
 
 import hydra
 import torch
+from huggingface_hub import snapshot_download
 from hydra.utils import instantiate
 
 from src.datasets.data_utils import get_dataloaders
@@ -29,6 +31,12 @@ def main(config):
     else:
         device = config.inferencer.device
 
+    if config.inferencer.get("from_pretrained_type") == "hf":
+        config.inferencer.from_pretrained = str(
+            Path(snapshot_download(repo_id=config.inferencer.from_pretrained))
+            / "model.safetensors"
+        )
+
     # setup data_loader instances
     # batch_transforms should be put on device
     dataloaders, batch_transforms = get_dataloaders(config, device)
@@ -47,6 +55,7 @@ def main(config):
     inferencer = Inferencer(
         generator=generator,
         config=config,
+        pretrained_type=config.inferencer.get("from_pretrained_type"),
         device=device,
         dataloaders=dataloaders,
         batch_transforms=batch_transforms,

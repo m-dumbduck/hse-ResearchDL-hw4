@@ -19,6 +19,7 @@ class Inferencer(BaseTrainer):
         self,
         generator,
         config,
+        pretrained_type,
         device,
         dataloaders,
         save_path,
@@ -54,6 +55,7 @@ class Inferencer(BaseTrainer):
 
         self.config = config
         self.cfg_trainer = self.config.inferencer
+        self.pretrained_type = pretrained_type
 
         self.device = device
 

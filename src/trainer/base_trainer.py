@@ -1,7 +1,9 @@
 from abc import abstractmethod
+from pathlib import Path
 
 import torch
 from numpy import inf
+from safetensors.torch import load_file
 from sympy.physics.continuum_mechanics import arch
 from torch.nn.utils import clip_grad_norm_
 from tqdm.auto import tqdm
@@ -28,6 +30,7 @@ class BaseTrainer:
         discriminator_optimizer,
         discriminator_lr_scheduler,
         config,
+        pretrained_type,
         device,
         dataloaders,
         logger,
@@ -64,6 +67,7 @@ class BaseTrainer:
 
         self.config = config
         self.cfg_trainer = self.config.trainer
+        self.pretrained_type = pretrained_type
 
         self.device = device
         self.skip_oom = skip_oom
@@ -579,7 +583,13 @@ class BaseTrainer:
             self.logger.info(f"Loading model weights from: {pretrained_path} ...")
         else:
             print(f"Loading model weights from: {pretrained_path} ...")
-        checkpoint = torch.load(pretrained_path, self.device, weights_only=False)
+        if self.pretrained_type == "file":
+            checkpoint = torch.load(pretrained_path, self.device, weights_only=False)
+        elif self.pretrained_type == "hf":
+            checkpoint = load_file(pretrained_path)
+        else:
+            raise ValueError("Unknown pretrained type. must be 'file' or 'hf'")
+
         if checkpoint.get("generator_state_dict") is not None:
             self.generator.load_state_dict(checkpoint["generator_state_dict"])
         else:

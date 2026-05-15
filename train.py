@@ -1,7 +1,9 @@
 import warnings
+from pathlib import Path
 
 import hydra
 import torch
+from huggingface_hub import snapshot_download
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
 
@@ -33,6 +35,12 @@ def main(config):
         device = "cuda" if torch.cuda.is_available() else "cpu"
     else:
         device = config.trainer.device
+
+    if config.trainer.get("from_pretrained_type") == "hf":
+        config.trainer.from_pretrained = str(
+            Path(snapshot_download(repo_id=config.trainer.from_pretrained))
+            / "model.safetensors"
+        )
 
     # setup data_loader instances
     # batch_transforms should be put on device
@@ -86,6 +94,7 @@ def main(config):
         discriminator_optimizer=discriminator_optimizer,
         discriminator_lr_scheduler=discriminator_lr_scheduler,
         config=config,
+        pretrained_type=config.trainer.get("from_pretrained_type"),
         device=device,
         dataloaders=dataloaders,
         epoch_len=epoch_len,

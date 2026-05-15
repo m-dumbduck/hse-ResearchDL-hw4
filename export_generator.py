@@ -8,7 +8,6 @@ from hydra.utils import instantiate
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", required=True, help="Path to checkpoint")
-    parser.add_argument("--output-dir", default=None, help="Path to export")
     parser.add_argument("--repo-id", required=True, help="HF repo id")
     args = parser.parse_args()
 
@@ -23,11 +22,6 @@ def main():
     generator = instantiate(checkpoint["config"].generator.model)
     generator.load_state_dict(checkpoint["generator_state_dict"])
     generator.eval()
-
-    if args.output_dir is not None:
-        output_dir = Path(args.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        generator.save_pretrained(output_dir)
 
     generator.push_to_hub(
         repo_id=args.repo_id,
