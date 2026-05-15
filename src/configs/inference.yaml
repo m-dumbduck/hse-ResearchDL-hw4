@@ -3,7 +3,7 @@ defaults:
   - metrics: analysis
   - datasets: inference # we do not want to run inference on training data
   - dataloader: inference
-  - transforms: basic
+  - transforms: inference
   - writer: cometml_inference
   - log_mel: basic
   - _self_
