@@ -24,4 +24,5 @@ class ResampleAudio(nn.Module):
         x[self.data_object_key] = torchaudio.functional.resample(
             x[self.data_object_key], x[self.sample_rate_key], self.target_sample_rate
         )
+        x[self.sample_rate_key] = self.target_sample_rate
         return x

@@ -2,7 +2,7 @@ defaults:
   - generator: soundstream
   - metrics: analysis
   - datasets: inference # we do not want to run inference on training data
-  - dataloader: basic
+  - dataloader: inference
   - transforms: basic
   - writer: cometml_inference
   - log_mel: basic

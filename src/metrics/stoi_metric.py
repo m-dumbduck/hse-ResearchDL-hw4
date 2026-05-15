@@ -22,6 +22,8 @@ class STOIMetric(BaseMetric):
         for original, reconstructed, length, fs in zip(
             audio, reconstructed_audio, raw_length, sample_rate
         ):
+            if length < 4000:
+                continue
             stoi.append(
                 short_time_objective_intelligibility(
                     preds=reconstructed[:length],
@@ -29,5 +31,7 @@ class STOIMetric(BaseMetric):
                     fs=fs.item(),
                 )
             )
+        if len(stoi) == 0:
+            return 0
 
         return float(torch.mean(torch.stack(stoi)))
