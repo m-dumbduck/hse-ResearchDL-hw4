@@ -2,16 +2,16 @@ test_librispeech:
   _target_: src.datasets.RecursiveSoundDataset
   name: "LibriSpeech/test-clean"
   instance_transforms: ${transforms.instance_transforms.inference}
-  limit: 12
+  limit: 1200
 
 test_commonvoice:
   _target_: src.datasets.RecursiveSoundDataset
   name: "CommonVoice/spontaneous_en"
   instance_transforms: ${transforms.instance_transforms.inference}
-  limit: 12
+  limit: 1200
 
 test_openstt:
   _target_: src.datasets.RecursiveSoundDataset
   name: "OpenSTT/buriy_audiobooks_2_val"
   instance_transforms: ${transforms.instance_transforms.inference}
-  limit: 12
+  limit: 1200
