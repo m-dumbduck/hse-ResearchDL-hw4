@@ -14,7 +14,13 @@ inference:
     use_reconstructed: true
   - _target_: src.metrics.SpectralCentroidMetric
     name: "OriginalSpectralCentroid"
+    n_fft: 1024
+    win_length: 1024
+    hop_length: 256
     use_reconstructed: false
   - _target_: src.metrics.SpectralCentroidMetric
     name: "ReconstructedSpectralCentroid"
     use_reconstructed: true
+    n_fft: 1024
+    win_length: 1024
+    hop_length: 256
