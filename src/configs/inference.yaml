@@ -12,6 +12,6 @@ inferencer:
   device: auto # device name or "auto"
   save_path: "example" # any name here, can be a dataset name
   seed: 1
-  max_batches_to_log: 100
+  max_batches_to_log: 40
   from_pretrained: "ldiujes/SoundStream" # path to the pretrained model or HuggingFace repo with PyTorchModelHubMixin
   from_pretrained_type: "hf" # file | hf
