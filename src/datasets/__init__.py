@@ -1,1 +1,1 @@
-from src.datasets.libri_speech_dataset import LibriSpeechDataset
+from src.datasets.recursive_sound_dataset import RecursiveSoundDataset

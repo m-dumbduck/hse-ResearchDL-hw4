@@ -1,15 +1,10 @@
-import numpy as np
 import soundfile
-import torch
-import torchaudio
-from tqdm.auto import tqdm
 
 from src.datasets.base_dataset import BaseDataset
-from src.transforms import PadWithReplicate, RandomCrop1D, ToTensor
 from src.utils.io_utils import ROOT_PATH, read_json, write_json
 
 
-class LibriSpeechDataset(BaseDataset):
+class RecursiveSoundDataset(BaseDataset):
     """
     Example of a nested dataset class to show basic structure.
 
@@ -26,7 +21,7 @@ class LibriSpeechDataset(BaseDataset):
                 this random dataset.
             name (str): partition name
         """
-        index_path = ROOT_PATH / "data" / "LibriSpeech" / name / "index.json"
+        index_path = ROOT_PATH / "data" / name / "index.json"
 
         # each nested dataset class must have an index field that
         # contains list of dicts. Each dict contains information about
@@ -111,11 +106,11 @@ class LibriSpeechDataset(BaseDataset):
                 such as label and object path.
         """
         index = []
-        data_path = ROOT_PATH / "data" / "LibriSpeech" / name
+        data_path = ROOT_PATH / "data" / name
         data_path.mkdir(exist_ok=True, parents=True)
 
         for file_path in data_path.rglob("*"):
-            if file_path.is_file() and file_path.suffix == ".flac":
+            if file_path.is_file() and file_path.suffix in [".flac", ".wav", ".mp3"]:
                 index.append({"path": str(file_path)})
 
         # write index to disk

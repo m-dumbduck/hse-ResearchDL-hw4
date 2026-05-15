@@ -1,9 +1,9 @@
 train:
-  _target_: src.datasets.LibriSpeechDataset
-  name: "train-clean-100"
+  _target_: src.datasets.RecursiveSoundDataset
+  name: "LibriSpeech/train-clean-100"
   instance_transforms: ${transforms.instance_transforms.train}
 
 test:
-  _target_: src.datasets.LibriSpeechDataset
-  name: "test-clean"
+  _target_: src.datasets.RecursiveSoundDataset
+  name: "LibriSpeech/test-clean"
   instance_transforms: ${transforms.instance_transforms.inference}
